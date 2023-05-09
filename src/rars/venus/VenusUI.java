@@ -5,6 +5,7 @@ import rars.Settings;
 import rars.riscv.InstructionSet;
 import rars.riscv.dump.DumpFormatLoader;
 import rars.simulator.Simulator;
+import rars.util.FilenameFinder;
 import rars.venus.registers.ControlAndStatusWindow;
 import rars.venus.registers.FloatingPointWindow;
 import rars.venus.registers.RegistersPane;
@@ -14,9 +15,14 @@ import rars.venus.settings.*;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.Transferable;
+import java.awt.dnd.*;
 import java.awt.event.*;
+import java.io.File;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.stream.Collectors;
 
 /*
 Copyright (c) 2003-2013,  Pete Sanderson and Kenneth Vollmar
@@ -247,6 +253,58 @@ public class VenusUI extends JFrame {
             System.out.println("Internal Error: could not open files" + String.join(", ", paths));
             System.exit(1);
         }
+
+        new DropTarget(this, new DropTargetListener() {
+            void handleDrag(DropTargetDragEvent dtde) {
+                if (dtde.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) {
+                    dtde.acceptDrag(DnDConstants.ACTION_COPY);
+                } else {
+                    dtde.rejectDrag();
+                }
+            }
+
+            @Override
+            public void dragEnter(DropTargetDragEvent dtde) {
+                handleDrag(dtde);
+            }
+
+            @Override
+            public void dragOver(DropTargetDragEvent dtde) {
+                handleDrag(dtde);
+            }
+
+            @Override
+            public void dropActionChanged(DropTargetDragEvent dtde) {
+
+            }
+
+            @Override
+            public void dragExit(DropTargetEvent dte) {
+
+            }
+
+
+            @SuppressWarnings("unchecked")
+            @Override
+            public void drop(DropTargetDropEvent dtde) {
+                if (dtde.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) {
+                    dtde.acceptDrop(dtde.getDropAction());
+                    Transferable t = dtde.getTransferable();
+                    try {
+                        java.util.List<File> files = (java.util.List<File>) t.getTransferData(DataFlavor.javaFileListFlavor);
+                        ArrayList<String> fileNames = FilenameFinder.getFilenameList(new ArrayList<>(files.stream().map(File::getPath).collect(Collectors.toList())), Globals.fileExtensions);
+                        if (!fileNames.isEmpty()) {
+                            dtde.dropComplete(true);
+                            editor.open(fileNames);
+                        }
+                    } catch (Exception e) {
+                        System.err.println(e);
+                    }
+                } else {
+                    dtde.rejectDrop();
+                }
+            }
+        });
     }
 
 
